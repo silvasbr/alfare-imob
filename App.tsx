@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { PropertyData } from './types';
-import { Dashboard } from './components/Dashboard';
-import { CreatePost } from './components/CreatePost';
-import { Login } from './components/Login';
+import { PropertyData } from './types.ts';
+import { Dashboard } from './components/Dashboard.tsx';
+import { CreatePost } from './components/CreatePost.tsx';
+import { Login } from './components/Login.tsx';
 import { Layout, LogOut, Plus, Menu, X } from 'lucide-react';
-import { metaService, type MetaAccountStatus } from './services/metaService';
+import { metaService, type MetaAccountStatus } from './services/metaService.ts';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
