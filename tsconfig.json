@@ -17,9 +17,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "allowImportingTsExtensions": true,
     "paths": {
-      "./*": ["./*"]
+      "@/*": ["./*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "vite.config.ts"],
