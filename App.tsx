@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { PropertyData } from './types.ts';
-import { Dashboard } from './components/Dashboard.tsx';
-import { CreatePost } from './components/CreatePost.tsx';
-import { Login } from './components/Login.tsx';
+import { PropertyData } from './types';
+import { Dashboard } from './components/Dashboard';
+import { CreatePost } from './components/CreatePost';
+import { Login } from './components/Login';
 import { Layout, LogOut, Plus, Menu, X } from 'lucide-react';
-import { metaService, type MetaAccountStatus } from './services/metaService.ts';
+import { metaService, type MetaAccountStatus } from './services/metaService';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [view, setView] = useState<'dashboard' | 'create'>('dashboard');
   const [posts, setPosts] = useState<PropertyData[]>([]);
   const [editingPost, setEditingPost] = useState<PropertyData | null>(null);
-  const [metaConnected, setMetaConnected] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -23,7 +22,9 @@ const App: React.FC = () => {
     const auth = localStorage.getItem('alfare_auth');
     if (auth === 'true') setIsAuthenticated(true);
     
-    metaService.getAccountStatus().then((res: MetaAccountStatus) => setMetaConnected(res.connected));
+    metaService.getAccountStatus().then((res: MetaAccountStatus) => {
+        console.log('Meta Status:', res.connected);
+    });
   }, []);
 
   const handleLoginSuccess = () => {
@@ -32,14 +33,14 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('alfare_auth');
     setIsAuthenticated(false);
+    localStorage.removeItem('alfare_auth');
   };
 
   const handlePostCreatedOrUpdated = (updatedPost: PropertyData) => {
-    setPosts(prevPosts => {
+    setPosts((prevPosts: PropertyData[]) => {
       let newPosts;
-      const index = prevPosts.findIndex(p => p.id === updatedPost.id);
+      const index = prevPosts.findIndex((p: PropertyData) => p.id === updatedPost.id);
       if (index !== -1) {
         newPosts = [...prevPosts];
         newPosts[index] = updatedPost;
