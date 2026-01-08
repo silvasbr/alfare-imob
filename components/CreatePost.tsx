@@ -107,7 +107,7 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
         if (extracted.amenities) setAmenities(extracted.amenities);
         if (extracted.type) setType(extracted.type as PropertyType);
         if (extracted.negotiation) setNegotiation(extracted.negotiation as NegotiationType);
-        const pref = extracted.type === PropertyType.APARTMENT ? 'APTO NO' : 'CASA NO';
+        const pref = (extracted.type === PropertyType.APARTMENT || (extracted.type as string) === 'APARTAMENTO') ? 'APTO NO' : 'CASA NO';
         setLocationPrefix(pref);
       }
     } catch (e) { console.error(e); } finally { setExtracting(false); }
@@ -186,6 +186,23 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
     setVideoBlobUrl(URL.createObjectURL(blob));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'images' | 'feedClosing' | 'reelsClosing' | 'reelsCover') => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        if (target === 'images') setUploadedImages(prev => [...prev, result]);
+        else if (target === 'feedClosing') setFeedClosingArt(result);
+        else if (target === 'reelsClosing') setReelsClosingArt(result);
+        else if (target === 'reelsCover') setReelsCoverArt(result);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   if (step === 'preview' && data && captions) {
     return (
       <div className="max-w-7xl mx-auto p-4 md:p-10 animate-in slide-in-from-right duration-500 pb-20">
@@ -198,7 +215,6 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
             <button 
               onClick={async () => {
                 setPublishing(true);
-                // Fix: Removed the third argument 'false' as publishToInstagram only accepts two arguments (url and caption)
                 const res = await metaService.publishToInstagram(data.images[0], captions.feed);
                 setPublishing(false);
                 if(res.success) { setPublished(true); setTimeout(() => setPublished(false), 3000); }
@@ -223,7 +239,6 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 mt-4">
           <div className="lg:col-span-8 space-y-10">
             
-            {/* Timeline do Reels */}
             <section className="bg-white dark:bg-[#1E293B] p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base md:text-lg font-black dark:text-white uppercase flex items-center gap-3">
@@ -249,7 +264,6 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
               </div>
             </section>
 
-            {/* Timeline do Feed */}
             <section className="bg-white dark:bg-[#1E293B] p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base md:text-lg font-black dark:text-white uppercase flex items-center gap-3">
@@ -274,7 +288,6 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
               </div>
             </section>
 
-            {/* Preview Visual */}
             <section>
               <div className="flex items-center justify-between mb-6">
                  <h2 className="text-lg font-black dark:text-white uppercase">Prévia do Carrossel</h2>
@@ -282,10 +295,12 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
                    const zip = new JSZip();
                    const canvases = document.querySelectorAll('canvas');
                    let count = 0;
-                   canvases.forEach((c) => {
-                     if (c.width === 1080 && c.height === 1350) {
+                   // Use Array.from and cast to HTMLCanvasElement to avoid type errors
+                   Array.from(canvases).forEach((c) => {
+                     const canvas = c as HTMLCanvasElement;
+                     if (canvas.width === 1080 && canvas.height === 1350) {
                         count++;
-                        zip.file(`feed_${count}.png`, c.toDataURL('image/png').split(',')[1], {base64: true});
+                        zip.file(`feed_${count}.png`, canvas.toDataURL('image/png').split(',')[1], {base64: true});
                      }
                    });
                    zip.generateAsync({type:"blob"}).then(blob => saveAs(blob, "carrossel_completo.zip"));
@@ -342,147 +357,128 @@ export const CreatePost: React.FC<Props> = ({ onBack, onPostCreated, initialData
     );
   }
 
+  // Handle Input Step UI
   return (
-    <div className="max-w-4xl mx-auto py-8 md:py-14 px-4 pb-32">
-      <div className="mb-12 text-center">
-        <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase mb-2">Novo Imóvel</h1>
-        <p className="text-gray-500 font-bold text-sm">Preencha os dados ou deixe a IA analisar para você.</p>
-      </div>
-      
-      <div className="space-y-6 md:space-y-8">
-        {/* Link ou Texto */}
-        <div className="bg-white dark:bg-[#1E293B] p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800">
-          <label className="block text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest ml-1">Análise Inteligente</label>
-          <div className="flex flex-col md:flex-row gap-4">
+    <div className="max-w-4xl mx-auto p-6 md:p-10 animate-in fade-in duration-500 pb-24">
+      <header className="flex items-center gap-4 mb-10">
+        <button onClick={onBack} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-colors">
+          <ArrowLeft size={24} />
+        </button>
+        <h1 className="text-2xl font-black uppercase tracking-tight dark:text-white">Detalhes do Imóvel</h1>
+      </header>
+
+      <div className="space-y-8">
+        <section className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Descrição ou Link do Anúncio</label>
+          <div className="flex flex-col md:flex-row gap-3">
             <textarea 
-              value={url} 
-              onChange={(e) => setUrl(e.target.value)} 
-              placeholder="Cole o link do portal ou a descrição do imóvel para análise automática..." 
-              className="flex-1 px-5 py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl outline-none font-bold focus:ring-2 ring-orange-500 transition-all min-h-[120px] resize-none text-sm md:text-base border border-transparent dark:border-gray-800" 
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Cole aqui o texto ou link do anúncio para extração automática..."
+              className="flex-1 p-4 bg-gray-50 dark:bg-[#0F172A] border-2 border-transparent focus:border-orange-500 rounded-2xl outline-none text-sm font-medium transition-all min-h-[100px] resize-none dark:text-white"
             />
-            <div className="flex flex-row md:flex-col gap-2 shrink-0">
-               <button 
-                onClick={handleAutoFill} 
-                disabled={extracting} 
-                className="flex-1 px-8 py-4 bg-orange-500 text-black font-black rounded-2xl hover:bg-orange-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10 active:scale-95"
-               >
-                 {extracting ? <Loader2 size={24} className="animate-spin" /> : <BrainCircuit size={28} />}
-               </button>
-               <span className="hidden md:block text-[8px] font-black text-center text-gray-400 uppercase tracking-tighter">Analisar IA</span>
-            </div>
+            <button 
+              onClick={handleAutoFill}
+              disabled={extracting}
+              className="md:w-48 bg-gray-900 dark:bg-gray-800 text-white font-black py-4 px-6 rounded-2xl hover:bg-orange-500 hover:text-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {extracting ? <Loader2 className="animate-spin" size={18} /> : <BrainCircuit size={18} />}
+              <span className="text-xs uppercase">IA Auto-Fill</span>
+            </button>
           </div>
-          {extracting && (
-            <div className="mt-4 flex items-center gap-3 text-orange-500 animate-pulse">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Extraindo metadados técnicos...</span>
-            </div>
-          )}
-        </div>
+        </section>
 
-        {/* Ficha Técnica */}
-        <div className="bg-white dark:bg-[#1E293B] p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-          <div className="md:col-span-2 flex items-center justify-between border-b border-gray-50 dark:border-gray-800 pb-5 mb-2">
-            <h2 className="font-black uppercase text-orange-500 tracking-widest text-xs md:text-sm flex items-center gap-2">
-              <Sparkles size={16} /> Ficha Técnica
-            </h2>
-            <div className="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl">
-              <button onClick={() => setNegotiation(NegotiationType.SELL)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${negotiation === NegotiationType.SELL ? 'bg-orange-500 text-black shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Venda</button>
-              <button onClick={() => setNegotiation(NegotiationType.RENT)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${negotiation === NegotiationType.RENT ? 'bg-orange-500 text-black shadow-md' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>Aluga</button>
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-orange-500 mb-2">Localização e Preço</h3>
+            <div>
+              <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Preço</label>
+              <input type="text" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="R$ 0,00" className="w-full p-3 bg-gray-50 dark:bg-[#0F172A] rounded-xl border-none outline-none font-bold text-sm dark:text-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Bairro</label>
+                <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-[#0F172A] rounded-xl border-none outline-none font-bold text-sm dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Cidade</label>
+                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-[#0F172A] rounded-xl border-none outline-none font-bold text-sm dark:text-white" />
+              </div>
             </div>
           </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Prefixo (Ex: CASA NO)</label>
-            <input type="text" value={locationPrefix} onChange={(e) => setLocationPrefix(e.target.value)} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm border border-transparent dark:border-gray-800" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Preço</label>
-            <input type="text" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 rounded-xl font-black text-red-500 text-sm border border-transparent dark:border-gray-800" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bairro</label>
-            <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm border border-transparent dark:border-gray-800" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cidade</label>
-            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-5 py-3.5 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm border border-transparent dark:border-gray-800" />
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:col-span-2">
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Área m²</label><input type="text" value={area} onChange={(e) => setArea(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm text-center border border-transparent dark:border-gray-800" /></div>
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Quartos</label><input type="text" value={beds} onChange={(e) => setBeds(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm text-center border border-transparent dark:border-gray-800" /></div>
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Banhs</label><input type="text" value={baths} onChange={(e) => setBaths(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm text-center border border-transparent dark:border-gray-800" /></div>
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Vagas</label><input type="text" value={parking} onChange={(e) => setParking(e.target.value)} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl font-bold text-sm text-center border border-transparent dark:border-gray-800" /></div>
-          </div>
-        </div>
 
-        {/* Mídia */}
-        <div className="bg-white dark:bg-[#1E293B] p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-800 space-y-8">
-           <div className="flex items-center justify-between border-b border-gray-50 dark:border-gray-800 pb-5">
-              <h2 className="font-black uppercase text-orange-500 tracking-widest text-xs md:text-sm flex items-center gap-2">
-                <ArrowLeftRight size={16} /> Fotos do Imóvel
-              </h2>
+          <div className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-orange-500 mb-2">Tipo e Negócio</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Tipo</label>
+                <select value={type} onChange={(e) => setType(e.target.value as PropertyType)} className="w-full p-3 bg-gray-50 dark:bg-[#0F172A] rounded-xl border-none outline-none font-bold text-sm dark:text-white appearance-none">
+                  <option value={PropertyType.HOUSE}>CASA</option>
+                  <option value={PropertyType.APARTMENT}>APARTAMENTO</option>
+                  <option value={PropertyType.LAND}>TERRENO</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Negócio</label>
+                <select value={negotiation} onChange={(e) => setNegotiation(e.target.value as NegotiationType)} className="w-full p-3 bg-gray-50 dark:bg-[#0F172A] rounded-xl border-none outline-none font-bold text-sm dark:text-white appearance-none">
+                  <option value={NegotiationType.SELL}>VENDA</option>
+                  <option value={NegotiationType.RENT}>ALUGUEL</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
+           <h3 className="text-xs font-black uppercase tracking-widest text-orange-500 mb-6">Mídias do Anúncio</h3>
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <button onClick={() => fileInputRef.current?.click()} className="aspect-square bg-gray-50 dark:bg-[#0F172A] rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center gap-2 hover:border-orange-500 transition-all">
+                <Upload size={24} className="text-gray-400" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Fotos Imóvel</span>
+                <input ref={fileInputRef} type="file" multiple hidden onChange={(e) => handleImageUpload(e, 'images')} />
+              </button>
+              
+              <button onClick={() => reelsCoverArtInputRef.current?.click()} className={`aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${reelsCoverArt ? 'border-green-500 bg-green-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F172A]'}`}>
+                {reelsCoverArt ? <CheckCircle2 size={24} className="text-green-500" /> : <Star size={24} className="text-gray-400" />}
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 text-center px-2">Capa Inicial Reels</span>
+                <input ref={reelsCoverArtInputRef} type="file" hidden onChange={(e) => handleImageUpload(e, 'reelsCover')} />
+              </button>
+
+              <button onClick={() => feedClosingArtInputRef.current?.click()} className={`aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${feedClosingArt ? 'border-green-500 bg-green-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F172A]'}`}>
+                {feedClosingArt ? <CheckCircle2 size={24} className="text-green-500" /> : <Layers size={24} className="text-gray-400" />}
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 text-center px-2">Arte Final Feed</span>
+                <input ref={feedClosingArtInputRef} type="file" hidden onChange={(e) => handleImageUpload(e, 'feedClosing')} />
+              </button>
+
+              <button onClick={() => reelsClosingArtInputRef.current?.click()} className={`aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${reelsClosingArt ? 'border-green-500 bg-green-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F172A]'}`}>
+                {reelsClosingArt ? <CheckCircle2 size={24} className="text-green-500" /> : <Clapperboard size={24} className="text-gray-400" />}
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 text-center px-2">Arte Final Reels</span>
+                <input ref={reelsClosingArtInputRef} type="file" hidden onChange={(e) => handleImageUpload(e, 'reelsClosing')} />
+              </button>
            </div>
            
-           <div 
-            onClick={() => fileInputRef.current?.click()} 
-            className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-center cursor-pointer hover:border-orange-500 hover:bg-orange-500/5 transition-all bg-gray-50 dark:bg-gray-900/40"
-           >
-              <input type="file" ref={fileInputRef} multiple accept="image/*" onChange={(e) => { const files = e.target.files; if (files) setUploadedImages(prev => [...prev, ...Array.from(files).map(f => URL.createObjectURL(f as any))]); }} className="hidden" />
-              <Upload className="mx-auto text-orange-500 mb-3" size={28} />
-              <p className="font-black uppercase text-[10px] tracking-widest text-gray-400">Carregar fotos do imóvel</p>
-           </div>
+           {uploadedImages.length > 0 && (
+             <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
+               {uploadedImages.map((img, i) => (
+                 <div key={i} className="relative group shrink-0">
+                    <img src={img} className="w-16 h-16 object-cover rounded-xl" />
+                    <button onClick={() => setUploadedImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100">
+                      <X size={12} />
+                    </button>
+                 </div>
+               ))}
+             </div>
+           )}
+        </section>
 
-           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {uploadedImages.map((img, i) => (
-                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden group shadow-md bg-black border border-gray-100 dark:border-gray-800">
-                  <img src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="" />
-                  <div className="absolute top-2 right-2">
-                    <button onClick={() => setUploadedImages(prev => prev.filter((_, idx) => idx !== i))} className="bg-red-500 text-white p-1 rounded-lg hover:scale-110 shadow-lg"><X size={12}/></button>
-                  </div>
-                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-md">
-                    #{i + 1}
-                  </div>
-                </div>
-              ))}
-           </div>
-           
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-50 dark:border-gray-800">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center block">Capa (Reels)</label>
-                <div onClick={() => reelsCoverArtInputRef.current?.click()} className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-center cursor-pointer aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-orange-500 transition-colors">
-                    <input type="file" ref={reelsCoverArtInputRef} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setReelsCoverArt(URL.createObjectURL(f as any)); }} />
-                    {reelsCoverArt ? <img src={reelsCoverArt} className="h-full w-full object-contain rounded-xl" /> : <Upload className="text-gray-300 dark:text-gray-700" size={24} />}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center block">Fim (Reels)</label>
-                <div onClick={() => reelsClosingArtInputRef.current?.click()} className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-center cursor-pointer aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-orange-500 transition-colors">
-                    <input type="file" ref={reelsClosingArtInputRef} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setReelsClosingArt(URL.createObjectURL(f as any)); }} />
-                    {reelsClosingArt ? <img src={reelsClosingArt} className="h-full w-full object-contain rounded-xl" /> : <Upload className="text-gray-300 dark:text-gray-700" size={24} />}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center block">Fim (Feed)</label>
-                <div onClick={() => feedClosingArtInputRef.current?.click()} className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-center cursor-pointer aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-orange-500 transition-colors">
-                    <input type="file" ref={feedClosingArtInputRef} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFeedClosingArt(URL.createObjectURL(f as any)); }} />
-                    {feedClosingArt ? <img src={feedClosingArt} className="h-full w-full object-contain rounded-xl" /> : <Upload className="text-gray-300 dark:text-gray-700" size={24} />}
-                </div>
-              </div>
-           </div>
-        </div>
-
-        {/* Gerar */}
-        <div className="pt-4">
-          <button 
-            onClick={handleGenerate} 
-            disabled={loading} 
-            className="w-full bg-orange-500 text-black font-black py-4.5 md:py-5 rounded-[1.5rem] md:rounded-3xl text-base md:text-lg shadow-2xl hover:bg-orange-600 transition-all flex items-center justify-center gap-3 active:scale-[0.98] uppercase tracking-tight"
-          >
-            {loading ? <Loader2 className="animate-spin" size={24} /> : <Sparkles size={24} />}
-            {loading ? 'Preparando Prévia...' : 'Gerar Criativos'}
-          </button>
-        </div>
+        <button 
+          onClick={handleGenerate}
+          disabled={loading || uploadedImages.length === 0}
+          className="w-full bg-orange-500 hover:bg-orange-600 text-black font-black py-5 rounded-[2rem] shadow-2xl shadow-orange-500/20 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="animate-spin" size={24} /> : <Sparkles size={24} />}
+          GERAR PREVIEW E CONTEÚDO
+        </button>
       </div>
     </div>
   );
