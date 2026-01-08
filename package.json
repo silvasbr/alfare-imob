@@ -1,3 +1,4 @@
+
 {
   "name": "alfare-imob-marketing-ai",
   "private": true,
@@ -12,12 +13,13 @@
     "@google/genai": "^1.34.0",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.462.0",
+    "lucide-react": "^0.562.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
+    "@types/node": "^22.10.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

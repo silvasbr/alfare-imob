@@ -5,7 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { CreatePost } from './components/CreatePost';
 import { Login } from './components/Login';
 import { Layout, LogOut, Plus, Menu, X } from 'lucide-react';
-import { metaService, MetaAccountStatus } from './services/metaService';
+import { metaService, type MetaAccountStatus } from './services/metaService';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -72,7 +72,7 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        {/* Sidebar (Desktop & Mobile) */}
+        {/* Sidebar */}
         <aside className={`${isMobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col w-full lg:w-64 bg-white dark:bg-[#1E293B] border-r border-gray-100 dark:border-gray-800 p-8 h-auto lg:h-screen sticky top-0 z-50`}>
           <div className="hidden lg:flex items-center gap-4 mb-12">
             <div className="w-10 h-10 bg-orange-500 rounded-2xl flex items-center justify-center font-black text-black">A</div>
@@ -107,7 +107,7 @@ const App: React.FC = () => {
             <Dashboard 
               posts={posts} 
               onCreateNew={() => setView('create')} 
-              onEditPost={(p) => { setEditingPost(p); setView('create'); }} 
+              onEditPost={(p: PropertyData) => { setEditingPost(p); setView('create'); }} 
             />
           ) : (
             <CreatePost 
